@@ -1,7 +1,5 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import Student from './models/student.js';
-import studentRouter from './routes/studentsRouter.js';
 import userRouter from './routes/userRouter.js';
 import jwt from 'jsonwebtoken';
 import productRouter from './routes/productRouter.js';
