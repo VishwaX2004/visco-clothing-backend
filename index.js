@@ -1,14 +1,17 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import Student from './models/student.js';
-import studentRouter from './routes/studentsRouter.js';
 import userRouter from './routes/userRouter.js';
 import jwt from 'jsonwebtoken';
 import productRouter from './routes/productRouter.js';
+import cors from "cors";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
 
 app.use(express.json());
+app.use(cors());
 
 app.use(
     (req, res, next) => {
@@ -16,7 +19,7 @@ app.use(
 
         if (token != null) {
             token = token.replace("Bearer ", "")
-            jwt.verify(token, "jwt-secret", 
+            jwt.verify(token,process.env.JWT_SECRET, 
                 (err,decoded) => {
                     if(decoded == null){
                         res.json({
@@ -33,7 +36,7 @@ app.use(
     }
 )
 
-const connectionString = "mongodb+srv://admin:1234@cluster0.st6u0be.mongodb.net/?appName=Cluster0";
+const connectionString = process.env.MONGO_URI;
 
 mongoose.connect(connectionString).then(
     () => {
@@ -45,8 +48,8 @@ mongoose.connect(connectionString).then(
     }
 )
 
-app.use("/users", userRouter);
-app.use("/products",productRouter);
+app.use("/api/users", userRouter);
+app.use("/api/products",productRouter);
 
 app.listen(5000, () => {
     console.log('Server is running on port 5000');
