@@ -1,159 +1,284 @@
 import Product from "../models/product.js";
 import { isAdmin } from "./userController.js";
 
+
 export async function createProduct(req, res) {
 
     if (!isAdmin(req)) {
-        res.status(403).json(
-            {
-                message: "You are not authorize to create a product"
-            }
-        )
-        return;
+
+        return res.status(403).json({
+            message: "You are not authorized to create a product"
+        });
     }
 
     try {
+
         const productData = req.body;
 
-        const product = new Product(productData);
+        console.log(
+            "Creating product:",
+            productData
+        );
 
-        await product.save()
+        const product =
+            new Product(productData);
 
-        res.json({
-            message: "Product Created Successfully"
-        })
+        await product.save();
+
+        return res.status(201).json({
+            message: "Product Created Successfully",
+            product
+        });
 
     } catch (err) {
 
-        res.status(500).json(
-            {
-                message: 'Failed to Create Product'
-            }
-        )
+        console.error(
+            "Create product error:",
+            err
+        );
 
+        // Duplicate productID / SKU
+        if (err.code === 11000) {
+
+            return res.status(409).json({
+                message:
+                    "Product ID or SKU already exists.",
+                error: err.message
+            });
+        }
+
+        // Mongoose validation error
+        if (err.name === "ValidationError") {
+
+            return res.status(400).json({
+                message:
+                    "Product validation failed.",
+                error: err.message
+            });
+        }
+
+        return res.status(500).json({
+            message:
+                "Failed to Create Product",
+            error:
+                process.env.NODE_ENV === "development"
+                    ? err.message
+                    : undefined
+        });
     }
-
 }
+
 
 export async function getProducts(req, res) {
 
     try {
 
-        const products = await Product.find();
+        const products =
+            await Product.find()
+                .sort({ createdAt: -1 });
 
-        res.json(products)
-
+        return res.status(200).json(
+            products
+        );
 
     } catch (err) {
 
-        console.log(err);
+        console.error(
+            "Get products error:",
+            err
+        );
 
-        res.status(500).json(
-            {
-                message: "Failed to retrive product"
-            }
-        )
-
+        return res.status(500).json({
+            message:
+                "Failed to retrieve products"
+        });
     }
-
-
 }
+
 
 export async function deleteProduct(req, res) {
 
     if (!isAdmin(req)) {
-        res.status(403).json(
-            {
-                message: "You are not authorize to create a product"
-            }
-        )
-        return;
+
+        return res.status(403).json({
+            message:
+                "You are not authorized to delete a product"
+        });
     }
 
     try {
 
-        const proudctID = req.params.productID
+        const productID =
+            req.params.productID;
 
-        await Product.deleteOne({
-            productID: productID
-        })
+        if (!productID) {
 
-        res.json({
-            message: "Product Deleted Successfully"
-        })
+            return res.status(400).json({
+                message:
+                    "Product ID is required"
+            });
+        }
+
+        const result =
+            await Product.deleteOne({
+                productID: productID
+            });
+
+        if (result.deletedCount === 0) {
+
+            return res.status(404).json({
+                message:
+                    "Product not found"
+            });
+        }
+
+        return res.status(200).json({
+            message:
+                "Product Deleted Successfully"
+        });
 
     } catch (err) {
 
-        res.status(500).json(
-            {
-                message: "Failed to Delete product"
-            }
-        )
+        console.error(
+            "Delete product error:",
+            err
+        );
 
+        return res.status(500).json({
+            message:
+                "Failed to Delete Product"
+        });
     }
-
 }
+
 
 export async function updateProduct(req, res) {
 
     if (!isAdmin(req)) {
-        res.status(403).json(
-            {
-                message: "You are not authorize to create a product"
-            }
-        )
-        return;
+
+        return res.status(403).json({
+            message:
+                "You are not authorized to update a product"
+        });
     }
 
     try {
 
-        const productID = req.params.productID
-        const updateData = req.body
+        const productID =
+            req.params.productID;
 
-        await Product.updateOne({ productID: productID }, updateData)
+        const updateData =
+            req.body;
 
-        res.json({
-            message: "Product Update Successfully"
-        })
+        if (!productID) {
+
+            return res.status(400).json({
+                message:
+                    "Product ID is required"
+            });
+        }
+
+        const product =
+            await Product.findOneAndUpdate(
+                {
+                    productID: productID
+                },
+                updateData,
+                {
+                    new: true,
+                    runValidators: true
+                }
+            );
+
+        if (!product) {
+
+            return res.status(404).json({
+                message:
+                    "Product not found"
+            });
+        }
+
+        return res.status(200).json({
+            message:
+                "Product Updated Successfully",
+            product
+        });
 
     } catch (err) {
 
-        res.status(500).json(
-            {
-                message: "Failed to Update product"
-            }
-        )
-    }
+        console.error(
+            "Update product error:",
+            err
+        );
 
+        if (err.code === 11000) {
+
+            return res.status(409).json({
+                message:
+                    "Product ID or SKU already exists.",
+                error: err.message
+            });
+        }
+
+        if (err.name === "ValidationError") {
+
+            return res.status(400).json({
+                message:
+                    "Product validation failed.",
+                error: err.message
+            });
+        }
+
+        return res.status(500).json({
+            message:
+                "Failed to Update Product"
+        });
+    }
 }
+
 
 export async function getProductByID(req, res) {
 
     try {
 
-        const productID = req.params.productID
+        const productID =
+            req.params.productID;
 
-        const product = await Product.findOne({ productID: productID })
+        if (!productID) {
 
-        if (product == null) {
-
-            res.status(404).json(
-                {
-                    message: "Product not fouund"
-                }
-            )
-        }else{
-            res.json(product)
+            return res.status(400).json({
+                message:
+                    "Product ID is required"
+            });
         }
+
+        const product =
+            await Product.findOne({
+                productID: productID
+            });
+
+        if (!product) {
+
+            return res.status(404).json({
+                message:
+                    "Product not found"
+            });
+        }
+
+        return res.status(200).json(
+            product
+        );
 
     } catch (err) {
 
-          res.status(500).json(
-            {
-                message: "Failed to find product"
-            }
-        )
+        console.error(
+            "Get product by ID error:",
+            err
+        );
 
+        return res.status(500).json({
+            message:
+                "Failed to find product"
+        });
     }
-
 }
